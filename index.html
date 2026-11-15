@@ -496,7 +496,22 @@ function load(){
   return fresh();
 }
 function save(){ try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){} }
-const unlocked = i => TEACHER || i === 0 || S.blocks[i-1].passed;
+/* ---- Fechas de apertura (curso 2026-2027). Se pueden cambiar en la pestaña «Calendario» de la hoja. ---- */
+const FECHAS_DEF = ['2026-10-19', '2026-11-15', '2026-12-20', '2027-01-17', '2027-01-31', '2027-02-14', '2027-02-28'];
+let FECHAS = FECHAS_DEF.slice(), HOY_SERVIDOR = null;
+const ISO = /^\d{4}-\d{2}-\d{2}$/;
+function hoyLocal(){
+  try{ return new Intl.DateTimeFormat('en-CA', {timeZone:'Europe/Madrid', year:'numeric', month:'2-digit', day:'2-digit'}).format(new Date()); }
+  catch(e){ const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+}
+const hoy = () => HOY_SERVIDOR || hoyLocal(); // manda la fecha del servidor de Google; sin conexión, la del dispositivo
+const dateOpen = i => TEACHER || !FECHAS[i] || hoy() >= FECHAS[i];
+const prevOk = i => i === 0 || S.blocks[i-1].passed;
+const unlocked = i => TEACHER || S.blocks[i].passed || (prevOk(i) && dateOpen(i));
+const ymd = f => { const [y, m, d] = f.split('-').map(Number); return new Date(y, m - 1, d, 12); };
+const fechaLarga = f => ymd(f).toLocaleDateString('es-ES', {weekday:'long', day:'numeric', month:'long'}).replace(',', '');
+const fechaCorta = f => ymd(f).toLocaleDateString('es-ES', {day:'numeric', month:'short'}).replace('.', '');
+const diasHasta = f => Math.round((ymd(f) - ymd(hoy())) / 864e5);
 const totalScore = () => S.blocks.reduce((a,b) => a + b.score, 0);
 const badgeCount = () => S.blocks.filter(b => b.passed).length;
 const currentZone = () => { const i = S.blocks.findIndex(b => !b.passed); return i === -1 ? null : i; };
@@ -534,7 +549,7 @@ const shuffle = a => { a = a.slice(); for(let i = a.length - 1; i > 0; i--){ con
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function show(id){ document.querySelectorAll('.screen').forEach(s => s.classList.toggle('active', s.id === id)); window.scrollTo({top:0, behavior:'smooth'}); stopSpeak(); }
 let toastT;
-function toast(msg){ const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 2600); }
+function toast(msg){ const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), msg.length > 60 ? 4200 : 2600); }
 function openModal(id){ const m = $(id); m.classList.add('show'); const f = m.querySelector('button, [href], input'); f && f.focus(); }
 function closeModals(){ document.querySelectorAll('.modal.show').forEach(m => m.classList.remove('show')); }
 document.querySelectorAll('.modal').forEach(m => m.addEventListener('click', e => { if(e.target === m || e.target.closest('[data-close]')) closeModals(); }));
@@ -639,7 +654,8 @@ function renderMap(){
   ZONES.forEach((z, i) => {
     const g = z.geo, b = S.blocks[i], open = unlocked(i), passed = b.passed, col = open ? z.color : '#A3ABB8';
     const c = C[i], tier = tierOf(b), isPatio = i === 3;
-    const label = `Zona ${i+1}: ${z.place}, ${z.topic}. ${passed ? 'Superada' : open ? 'Disponible' : 'Bloqueada'}`;
+    const pend = !passed && !dateOpen(i);
+    const label = `Zona ${i+1}: ${z.place}, ${z.topic}. ${passed ? 'Superada' : open ? 'Disponible' : 'Bloqueada' + (pend ? ', se abre el ' + fechaLarga(FECHAS[i]) : '')}`;
     s += `<g class="zone ${open ? '' : 'locked'}" data-i="${i}" tabindex="0" role="button" aria-label="${esc(label)}">
       <rect class="zrect" x="${g.x}" y="${g.y}" width="${g.w}" height="${g.h}" rx="18" fill="${isPatio ? 'transparent' : (open ? col + '22' : '#ECEEF2')}" stroke="${col}" stroke-width="4" ${isPatio ? '' : 'filter="url(#sh)"'}/>
       ${isPatio ? patioDecor(g) : ''}
@@ -652,6 +668,7 @@ function renderMap(){
         ${passed ? `<circle cx="${c.x + 26}" cy="${c.y - 24}" r="14" fill="${tier === 'gold' ? '#E8A90C' : '#9AA5B5'}" stroke="#fff" stroke-width="3"/><g transform="translate(${c.x + 18} ${c.y - 32}) scale(.68)" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round">${ICON.check}</g>` : ''}
         <text x="${c.x}" y="${c.y + 56}" text-anchor="middle" font-family="Fredoka, sans-serif" font-weight="600" font-size="19" fill="${open ? shade(z.color) : '#8A93A1'}" ${isPatio ? 'stroke="#F3FAF0" stroke-width="5" paint-order="stroke"' : ''}>${esc(z.topic)}</text>
       </g>
+      ${pend ? `<g aria-hidden="true"><rect x="${c.x + 38}" y="${c.y - 18}" width="98" height="32" rx="16" fill="#fff" stroke="#A3ABB8" stroke-width="2"/><text x="${c.x + 87}" y="${c.y + 4}" text-anchor="middle" font-family="Fredoka, sans-serif" font-weight="600" font-size="16" fill="#4A5568">📅 ${fechaCorta(FECHAS[i])}</text></g>` : ''}
       ${cur === i ? `<text x="${c.x - 64}" y="${c.y + 12}" font-size="40" class="bob" aria-hidden="true">${S.avatar}</text>` : ''}
     </g>`;
   });
@@ -666,7 +683,7 @@ function renderMap(){
 
   $('#zoneList').innerHTML = ZONES.map((z, i) => {
     const b = S.blocks[i], open = unlocked(i), t = tierOf(b);
-    const st = b.passed ? (t === 'gold' ? '🥇 Oro' : '🥈 Plata') : open ? '▶ Jugar' : '🔒';
+    const st = b.passed ? (t === 'gold' ? '🥇 Oro' : '🥈 Plata') : open ? '▶ Jugar' : !dateOpen(i) ? '📅 ' + fechaCorta(FECHAS[i]) : '🔒';
     return `<button type="button" class="zcard ${open ? '' : 'locked'}" style="--zc:${z.color}" data-i="${i}">
       <span class="zi">${svgIcon(open ? z.icon : 'lock')}</span>
       <span><span class="zt">${i+1}. ${esc(z.topic)}</span><br><span class="zs">${esc(z.place)}</span></span>
@@ -688,7 +705,12 @@ function shade(hex){ // oscurece el color de zona para texto legible
 function tryOpen(i, el){
   if(!unlocked(i)){
     sfx.lock(); el.classList.remove('shake'); void el.getBoundingClientRect(); el.classList.add('shake');
-    toast(`🔒 Supera antes la zona ${i}: ${ZONES[i-1].topic}`); return;
+    const f = FECHAS[i], dias = f ? diasHasta(f) : 0;
+    const cuando = dias === 1 ? '¡Mañana!' : dias > 1 ? `¡Faltan ${dias} días!` : '';
+    if(!prevOk(i) && !dateOpen(i)) toast(`🔒 Supera antes la zona ${i}: ${ZONES[i-1].topic}. Además, esta zona se abre el ${fechaLarga(f)}.`);
+    else if(!dateOpen(i)) toast(`📅 Esta zona se abre el ${fechaLarga(f)}. ${cuando}`);
+    else toast(`🔒 Supera antes la zona ${i}: ${ZONES[i-1].topic}`);
+    return;
   }
   const z = ZONES[i], b = S.blocks[i], t = tierOf(b);
   $('#mzBody').innerHTML = `<div class="zhead"><div class="zi" style="background:${z.color}">${svgIcon(z.icon)}</div>
@@ -713,7 +735,7 @@ $('#btnTrophy').addEventListener('click', showVictory);
 /* ================= PREGUNTAS ================= */
 let R = null; // ronda en curso
 function startBlock(i){
-  const qs = shuffle(Q[i]).map(q => ({...q, opts: shuffle(q.o.map((t, k) => ({t, ok: k === q.c})))}));
+  const qs = shuffle(Q[i]).slice(0, 5).map(q => ({...q, opts: shuffle(q.o.map((t, k) => ({t, ok: k === q.c})))}));
   R = {i, qs, n:0, correct:0, streak:0, pts:0, wrong:[], answered:false, marks:[]};
   const z = ZONES[i];
   $('#quizBox').style.setProperty('--zc', z.color);
@@ -782,18 +804,19 @@ function finishBlock(){
   let html;
   if(passed){
     sfx.win(); burst(70);
-    const next = i < 6 ? ZONES[i+1] : null;
+    const next = i < 6 ? ZONES[i+1] : null, nextOpen = next && unlocked(i + 1);
     html = `<div class="badge-big">${badgeSVG(i, tier)}</div>
       <h1 style="color:${z.color}">${!wasPassed ? '¡Insignia conseguida!' : (tier === 'gold' ? '¡Insignia de oro!' : '¡Zona superada otra vez!')}</h1>
       <p style="font-size:1.15rem; margin:.2em 0">«${esc(z.badge)}» · ${tier === 'gold' ? '🥇 Oro' : '🥈 Plata'}</p>
       <div class="stars" aria-label="${R.correct} de 5 aciertos">${stars}</div>
       <div class="stats" style="justify-content:center"><span class="pill">✔ ${R.correct}/5 aciertos</span><span class="pill">⭐ ${R.pts} puntos${R.correct === 5 ? ' (incluye +100 por pleno)' : ''}</span></div>
-      ${!wasPassed && next ? `<p style="margin-top:16px">🔓 Has desbloqueado <b style="color:${next.color}">${esc(next.place)} · ${esc(next.topic)}</b></p>` : ''}
+      ${!wasPassed && next ? (nextOpen ? `<p style="margin-top:16px">🔓 Has desbloqueado <b style="color:${next.color}">${esc(next.place)} · ${esc(next.topic)}</b></p>` :
+        `<p style="margin-top:16px">📅 La siguiente zona, <b style="color:${next.color}">${esc(next.place)} · ${esc(next.topic)}</b>, se abrirá el <b>${fechaLarga(FECHAS[i+1])}</b>. ¡Te esperamos ese día!</p>`) : ''}
       ${tier === 'silver' ? `<p class="muted">Consigue 5/5 para cambiar tu insignia de plata por una de oro.</p>` : ''}
       ${review}
       <div class="btns">
         ${firstWin ? `<button class="btn" id="rWin" type="button" style="background:#E8A90C">🏆 ¡Ver mi trofeo!</button>` :
-          next && !wasPassed ? `<button class="btn" id="rNext" type="button" style="background:${next.color}">Ir a la zona ${i+2} →</button>` : ''}
+          next && !wasPassed && nextOpen ? `<button class="btn" id="rNext" type="button" style="background:${next.color}">Ir a la zona ${i+2} →</button>` : ''}
         <button class="btn ghost" id="rMap" type="button">Volver al plano</button>
       </div>`;
   }else{
@@ -846,9 +869,42 @@ function loop(){
   raf = parts.length ? requestAnimationFrame(loop) : (cx.clearRect(0, 0, cv.width, cv.height), null);
 }
 
+/* ================= PREGUNTAS DESDE LA HOJA DE GOOGLE =================
+   Si hay REGISTRO.URL, el juego pide las preguntas a la pestaña «Preguntas».
+   Un bloque que no llegue bien (o sin conexión) usa las preguntas internas. */
+const Q_BASE = Q.map(b => b.slice());
+const KEYQ = 'escuela-visual-preguntas';
+const okQ = l => Array.isArray(l) && l.length >= 5 && l.every(q => q && typeof q.q === 'string' && q.q.trim() &&
+  Array.isArray(q.o) && q.o.length === 4 && q.o.every(x => typeof x === 'string' && x.trim()) && Number.isInteger(q.c) && q.c >= 0 && q.c <= 3);
+function aplicarPreguntas(d){
+  for(let i = 0; i < 7; i++){
+    const l = d && Array.isArray(d.bloques) ? d.bloques[i] : null;
+    Q[i] = okQ(l) ? l.map(q => ({q:q.q, o:q.o.slice(), c:q.c, e:String(q.e || '')})) : Q_BASE[i];
+    const f = d && Array.isArray(d.fechas) ? d.fechas[i] : null;
+    FECHAS[i] = f === '' ? '' : (typeof f === 'string' && ISO.test(f) ? f : FECHAS_DEF[i]);
+  }
+}
+async function cargarPreguntas(){
+  if(!REGISTRO.URL) return;
+  try{ const c = JSON.parse(localStorage.getItem(KEYQ) || 'null'); if(c) aplicarPreguntas(c); }catch(e){}
+  try{
+    const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 9000);
+    const r = await fetch(REGISTRO.URL + '?preguntas=1', {credentials:'omit', cache:'no-store', signal:ctl.signal});
+    clearTimeout(t);
+    const d = await r.json();
+    if(d && d.ok && Array.isArray(d.bloques)){
+      if(typeof d.hoy === 'string' && ISO.test(d.hoy)) HOY_SERVIDOR = d.hoy;
+      aplicarPreguntas(d); delete d.hoy;
+      try{ localStorage.setItem(KEYQ, JSON.stringify(d)); }catch(e){}
+      if($('#s-map').classList.contains('active')) renderMap();
+    }
+  }catch(e){ /* sin conexión: se quedan las guardadas o las internas */ }
+}
+
 /* ================= ARRANQUE ================= */
 renderStart();
 flush();
+cargarPreguntas();
 if(TEACHER) toast('Modo docente: todas las zonas están abiertas.');
 })();
 </script>
