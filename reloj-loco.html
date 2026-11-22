@@ -169,6 +169,75 @@
   .mini{border:none; background:#fff; border-radius:50%; width:5vh; height:5vh; font-size:2.6vh; vertical-align:middle;}
   .card .content .acciones{position:sticky; bottom:0; background:linear-gradient(rgba(255,255,255,0), #fff 30%); padding-bottom:.5vh;}
   @media (max-height: 500px){ .top{height:13vh;} .horario{height:24vh;} .solbtn{bottom:25vh;} }
+
+  /* =========== MÓVIL EN VERTICAL =========== */
+  @media (orientation: portrait){
+    .screen{overflow-y:auto; -webkit-overflow-scrolling:touch;}
+    .top{height:auto; min-height:9vh; flex-wrap:wrap; padding:1vh 3vw; gap:2vw;}
+    .top img{height:5.5vh;}
+    .top .tit{font-size:3.8vw;} .top .tit small{font-size:3.2vw;}
+    .steps{order:3; width:100%; margin:0; justify-content:space-between; gap:1vw;}
+    .step{font-size:0; padding:.6vh; gap:0; border-width:.25vh;} .step i{width:7vw; height:7vw; font-size:3.6vw;}
+    .step.on{font-size:2.8vw; padding:.6vh 2vw; gap:1.5vw;}
+    .tools{margin-left:auto; gap:2vw;} .ico{width:9vw; height:9vw; font-size:4.6vw;}
+    .btn{font-size:4.2vw; padding:1.6vh 5vw; border-radius:2vh;}
+    /* inicio */
+    #home{justify-content:flex-start; padding:4vh 4vw 3vh;}
+    #home .clock{height:22vh;}
+    #home h1{font-size:9.5vw;} #home .sub{font-size:3.8vw;}
+    .niveles{grid-template-columns:repeat(2,1fr); width:92vw; gap:3vw; margin-top:2vh;}
+    .nivbtn{font-size:5.5vw; padding:2vh 2vw;} .nivbtn small{font-size:3.4vw;}
+    .pie{position:static; margin-top:3vh; font-size:3vw; text-align:center;}
+    /* intro */
+    #intro .body{flex-direction:column; gap:2vh; padding:2vh 4vw; flex:none;}
+    #intro .clock{height:16vh;}
+    .bocadillo{font-size:4.2vw; padding:2vh 4vw; border-radius:3vh;}
+    .bocadillo:before{left:50%; top:-3vh; margin-left:-1.5vh; border:1.5vh solid transparent; border-bottom:2vh solid var(--nar); border-right-color:transparent;}
+    .grupo{flex-direction:column; align-items:stretch; font-size:3.8vw;} .grupo input{font-size:4.2vw;}
+    /* estación */
+    #station .main{flex:none; padding:1.5vh 3vw;}
+    #station .main{flex-direction:column;} .card{flex:none; width:100%; min-width:0;}
+    .card .head{flex-wrap:wrap; padding:1.2vh 3vw; gap:1vh 3vw;} .card .head b{font-size:5vw;} .card .head em{font-size:3.4vw; flex-basis:100%;}
+    .card .head .clockmini{height:4.5vh;}
+    .card .content{padding:2vh 4vw; overflow:visible;}
+    .etiq{font-size:3.2vw;}
+    .texto{font-size:4.6vw;} .texto.peq{font-size:4vw;}
+    .acciones{gap:2vw;} .card .content .acciones{position:static; background:none;}
+    .acciones .btn{flex:1 1 100%;}
+    .pad{grid-template-columns:repeat(5, 15vw); gap:2vw;} .key{height:15vw; font-size:7vw; border-radius:2vw;}
+    .grid{grid-template-columns:repeat(3,1fr); gap:2vw;} .grid.lbl{grid-template-columns:repeat(2,1fr);}
+    .pic{min-height:13vh; padding:1vh;} .pic img{max-height:12vh;} .grid.lbl .pic{min-height:7vh;} .grid.lbl .pic img{max-height:5vh;}
+    .solbtn{position:static; display:block; margin:0 auto 1.5vh; font-size:3.2vw;}
+    .horario{height:auto; min-height:15vh; padding:1vh 2vw; gap:1.5vw; position:sticky; bottom:0; margin-top:auto; z-index:5;}
+    .horario .rot{display:none;}
+    .slot{height:13vh; border-radius:1.5vh;} .slot .n{font-size:2.8vw;} .slot img.p{max-height:8vh;} .slot.lbl img.p{max-height:3.6vh;}
+    .slot .d{min-width:6vw; height:6vw; font-size:4vw; border-radius:1vw;} .slot .star{font-size:6vw;} .slot .mark{font-size:5vw;}
+    /* comprobación */
+    #check .main{flex:none; justify-content:flex-start; gap:2vh; padding:2vh 4vw;}
+    #check h2{font-size:7vw;} #check .msg{font-size:4.2vw;}
+    .candado{gap:1.5vw; padding:1.5vh 3vw;} .candado .lock{font-size:9vw;} .candado .dig{width:12vw; height:16vw; font-size:9vw; border-radius:2vw;}
+    /* final */
+    #final{justify-content:flex-start; padding:3vh 4vw;}
+    #final .fila{flex-direction:column; gap:1vh;}
+    #final .clock{height:14vh;} #final .badge{height:28vh;}
+    #final h2{font-size:7.5vw;} #final .msg{font-size:4.2vw;}
+    .horfinal{flex-wrap:wrap; justify-content:center; gap:2vw;} .horfinal div{width:16vw; height:16vw;} .horfinal.lbl div{width:28vw; height:9vw;}
+    #final .barra-abajo{flex-direction:column; width:100%; gap:1.5vh;}
+    /* ventanas */
+    .modal .box{max-width:94vw; padding:3vh 5vw; font-size:4.2vw;} .modal h3{font-size:5.5vw;}
+    .tab{font-size:3.6vw; padding:1vh 3vw;} .repaso{font-size:4vw;} .mini{width:8vw; height:8vw; font-size:4vw;}
+  }
+  /* =========== MÓVIL EN HORIZONTAL (poca altura) =========== */
+  @media (orientation: landscape) and (max-height: 520px){
+    .screen{overflow-y:auto;}
+    .texto{font-size:3.2vh;}
+    .pad{grid-template-columns:repeat(10, 9vh); gap:1vh;} .key{height:9vh; font-size:4.5vh;}
+    .pic{min-height:16vh;} .pic img{max-height:15vh;}
+    .btn{font-size:3vh; padding:1.4vh 2.5vw;}
+    #intro .clock{height:30vh;} .bocadillo{font-size:2.7vh; padding:2vh 2vw;}
+    #final .badge{height:34vh;} #final .clock{height:22vh;} #final h2{font-size:5vh; margin:0;} #final .msg{font-size:2.8vh;}
+    .horfinal{margin:1vh 0;} .horfinal div{width:11vh; height:11vh;}
+  }
   /* ---------- impresión de la insignia ---------- */
   #print{display:none;}
   @media print{
