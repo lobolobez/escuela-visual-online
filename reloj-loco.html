@@ -415,7 +415,7 @@ function pintarNiveles(){
   $("niveles").innerHTML = NIVELES.map((n,i)=>
     `<button class="nivbtn" style="background:#${n.color}" onclick="elegir(${i})">${n.corto}<small>${n.edad}</small></button>`).join("");
 }
-function inicio(){ if(enCurso()){ registrar(false); borrarPartida(); } pantalla = "home"; pintarReanudar(); confetiId++; const cv=$("confeti"); cv.getContext("2d").clearRect(0,0,cv.width,cv.height); if(window.speechSynthesis) speechSynthesis.cancel(); cerrarModal(); mostrar("home"); }
+function inicio(){ if(enCurso()){ registrar("Abandonada"); borrarPartida(); } pantalla = "home"; pintarReanudar(); confetiId++; const cv=$("confeti"); cv.getContext("2d").clearRect(0,0,cv.width,cv.height); if(window.speechSynthesis) speechSynthesis.cancel(); cerrarModal(); mostrar("home"); }
 function confirmarInicio(){
   modal(`<h3>¿Volver al inicio?</h3><p>La partida de esta clase se dará por terminada sin completar.</p>
     <div class="acciones"><button class="btn sec" onclick="cerrarModal()">Seguir jugando</button><button class="btn" onclick="inicio()">Sí, volver</button></div>`);
@@ -434,14 +434,14 @@ function empezar(){
   const previa = leerPartida();   // si había otra partida a medias en este dispositivo, se registra como no terminada
   if(previa && NIVELES[previa.nivelIdx] && previa.stats){
     const g = $("nomGrupo").value, n = N, ni = nivelIdx;
-    N = NIVELES[previa.nivelIdx]; slots = previa.slots; stats = previa.stats; $("nomGrupo").value = previa.grupo || ""; terminada = false;
-    registrar(false); borrarPartida();
-    N = n; nivelIdx = ni; $("nomGrupo").value = g; slots = [null,null,null,null,null];
+    encolar(registroDe({nivel: NIVELES[previa.nivelIdx], slots: previa.slots, stats: previa.stats, grupo: previa.grupo}, "Abandonada"));
+    borrarPartida();
   }
   terminada = false;
   stats = {id: Date.now().toString(36) + Math.random().toString(36).slice(2,8), t0: Date.now(), intentos: 0, fallosPrimer: null, rescate: false, soluciones: []};
   if(window.speechSynthesis) speechSynthesis.cancel();
   pantalla = "station"; mostrar("station"); pintarEstacion();
+  registrar("En curso");   // la partida aparece en la hoja desde el principio
 }
 
 /* ---------- estación ---------- */
@@ -539,7 +539,7 @@ function selectorPictos(fn){
 function irPaso(p){ if(p===1) p = 2; paso = p; if(p===2) selD = null; if(p===3) selP = null; sTic(); pintarEstacion(); }
 function elegirCifra(n){ selD = n; tono(700,.08,"square",.08); pintarEstacion(); }
 function elegirPicto(i){ selP = i; tono(700,.08,"square",.08); pintarEstacion(); }
-function colocar(){ slots[st] = {p:selP, d:selD}; nuevo = st; sOk(); paso = 4; pintarEstacion(); }
+function colocar(){ slots[st] = {p:selP, d:selD}; nuevo = st; registrar("En curso"); sOk(); paso = 4; pintarEstacion(); }
 function siguiente(){ st++; paso = 0; selP = selD = null; pintarEstacion(); }
 function leerActual(){
   const e = N.estaciones[st];
@@ -583,7 +583,7 @@ function comprobar(){
     stats.fallosPrimer = f.length ? f.join(", ") : "Ninguna";
   }
   if(aciertos()===5){ sFan(); pintarCheck(true); setTimeout(fin, 900); }
-  else { sKo(); pintarCheck(false); document.querySelectorAll("#horario2 .slot").forEach(s=>s.classList.add("bad")); setTimeout(()=>pintarHorario("horario2","check"),600); }
+  else { registrar("En curso"); sKo(); pintarCheck(false); document.querySelectorAll("#horario2 .slot").forEach(s=>s.classList.add("bad")); setTimeout(()=>pintarHorario("horario2","check"),600); }
 }
 function editarSlot(k){
   editando = k; selP = slots[k].p; selD = slots[k].d;
@@ -622,7 +622,7 @@ function repaso(k){
 
 /* ---------- final ---------- */
 function fin(){
-  terminada = true; pantalla = "final"; registrar(true); borrarPartida();
+  terminada = true; pantalla = "final"; registrar("Terminada"); borrarPartida();
   const g = $("nomGrupo").value.trim();
   $("fBadge").src = IMG[N.badge];
   $("fTit").textContent = g ? `¡${g}, sois Guardianes del Tiempo!` : "¡Sois Guardianes del Tiempo!";
@@ -683,19 +683,28 @@ function reanudar(){
 }
 function descartar(){
   const p = leerPartida();
-  if(p && NIVELES[p.nivelIdx]){ N = NIVELES[p.nivelIdx]; nivelIdx = p.nivelIdx; slots = p.slots; stats = p.stats; $("nomGrupo").value = p.grupo || ""; terminada = false; registrar(false); }
-  borrarPartida(); N = null; stats = null; pintarReanudar();
+  if(p && NIVELES[p.nivelIdx] && p.stats) encolar(registroDe({nivel: NIVELES[p.nivelIdx], slots: p.slots, stats: p.stats, grupo: p.grupo}, "Abandonada"));
+  borrarPartida(); pintarReanudar();
 }
 
 /* ---------- enviar el resultado a la hoja de Google ---------- */
-function registrar(superado){
-  if(!stats) return;
-  const r = {
-    clave: REGISTRO_CLAVE, id: stats.id, fecha: new Date(stats.t0).toISOString(), nivel: N.titulo,
-    grupo: $("nomGrupo").value.trim(), estaciones: slots.filter(Boolean).length, superado: !!superado,
-    intentos: stats.intentos, fallosPrimer: stats.fallosPrimer || (stats.intentos ? "Ninguna" : "Sin comprobar"),
-    rescate: !!stats.rescate, soluciones: stats.soluciones.length, minutos: Math.round((Date.now() - stats.t0) / 6000) / 10,
+let seqEnvio = 0;
+function registroDe(c, estado){
+  return {
+    clave: REGISTRO_CLAVE, id: c.stats.id, seq: Date.now() * 100 + (seqEnvio++ % 100), estado,
+    fecha: new Date(c.stats.t0).toISOString(), nivel: c.nivel.titulo, grupo: (c.grupo || "").trim(),
+    estaciones: (c.slots || []).filter(Boolean).length, superado: estado === "Terminada",
+    intentos: c.stats.intentos, fallosPrimer: c.stats.fallosPrimer || (c.stats.intentos ? "Ninguna" : "Sin comprobar"),
+    rescate: !!c.stats.rescate, soluciones: (c.stats.soluciones || []).length,
+    minutos: Math.round((Date.now() - c.stats.t0) / 6000) / 10,
   };
+}
+function registrar(estado){
+  if(!stats || !N) return;
+  encolar(registroDe({nivel: N, slots, stats, grupo: $("nomGrupo").value}, estado));
+}
+function encolar(r){
+  // De cada partida solo se guarda su último estado: el script actualiza la misma fila.
   const cola = leerCola().filter(x => x.id !== r.id); cola.push(r);
   guardarCola(cola.slice(-200)); enviarPendientes();
 }
@@ -706,23 +715,40 @@ async function enviarPendientes(){
   if(enviando || !REGISTRO_URL || !navigator.onLine) return;
   enviando = true;
   try {
-    for(const r of leerCola()){
-      try {
-        const res = await fetch(REGISTRO_URL, {method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"}, body: JSON.stringify(r)});
-        const j = await res.json();
-        if(j.ok || j.error === "clave" || j.error === "nivel") guardarCola(leerCola().filter(x => x.id !== r.id)); // enviado (o inválido: no reintentar)
-      } catch(e){ break; }   // sin conexión: se reintenta más tarde
+    let fallo = false;
+    // Se repite mientras queden envíos: durante un envío pueden llegar estados nuevos de la partida.
+    while(!fallo && leerCola().length){
+      for(const r of leerCola()){
+        try {
+          const res = await fetch(REGISTRO_URL, {method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"}, body: JSON.stringify(r)});
+          const j = await res.json();
+          // Enviado (o inválido: no se reintenta). Solo se quita si no ha llegado entretanto un estado más nuevo de esa partida.
+          if(j.ok || j.error === "clave" || j.error === "nivel") guardarCola(leerCola().filter(x => !(x.id === r.id && (x.seq || 0) <= (r.seq || 0))));
+          else { fallo = true; break; }   // error del servidor: se reintenta más tarde
+        } catch(e){ fallo = true; break; }  // sin conexión: se reintenta más tarde
+      }
     }
   } finally { enviando = false; }
 }
 window.addEventListener("online", enviarPendientes);
+// Al cerrar la pestaña o apagar la pantalla, se envía lo pendiente aunque la página desaparezca.
+function enviarAlSalir(){
+  if(enCurso()) { guardarPartida(); registrar("En curso"); }
+  if(!REGISTRO_URL || !navigator.sendBeacon) return;
+  const quedan = leerCola().filter(r => !navigator.sendBeacon(REGISTRO_URL, new Blob([JSON.stringify(r)], {type: "text/plain;charset=utf-8"})));
+  guardarCola(quedan);
+}
+addEventListener("pagehide", enviarAlSalir);
+document.addEventListener("visibilitychange", () => { if(document.visibilityState === "hidden") enviarAlSalir(); });
 setInterval(enviarPendientes, 120000);
 
 /* ---------- modal ---------- */
 function modal(html){ $("modalBox").innerHTML = html; $("modal").classList.add("on"); }
 function cerrarModal(){ $("modal").classList.remove("on"); }
 
-pintarNiveles(); pintarReanudar(); enviarPendientes();
+pintarNiveles(); pintarReanudar();
+{ const p = leerPartida(); if(p && NIVELES[p.nivelIdx] && p.stats) encolar(registroDe({nivel: NIVELES[p.nivelIdx], slots: p.slots, stats: p.stats, grupo: p.grupo}, "En curso")); }
+enviarPendientes();
 if(window.speechSynthesis) speechSynthesis.getVoices();
 </script>
 </body>
